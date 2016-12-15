@@ -21,6 +21,9 @@ import re
 import subprocess
 import sys
 import socket
+import getpass
+import platform
+import pwd
 
 __version__ = '1.5.0'
 
@@ -34,7 +37,6 @@ STATUS_ERROR = 2
 STATUS_UNKNOWN = 3
 
 def main():
-
   # parse args
   parser = argparse.ArgumentParser(description="'ceph osd' nagios plugin.")
   parser.add_argument('-e','--exe', help='ceph executable [%s]' % CEPH_COMMAND)
@@ -96,6 +98,19 @@ def main():
       ceph_cmd.append(args.keyring)
   ceph_cmd.append('osd')
   ceph_cmd.append('dump')
+
+  # George V: on SL6 the user 'nagios' does not have a HOME envvar causing 
+  # LTTng to complain and prevent the check from working
+  # the following fix is meant to detect this condition and rectify it
+  try:
+    username = os.environ['USER']
+  except KeyError:
+    username = getpass.getuser()
+    os.environ['USER'] = username
+  try:
+    _ = os.environ['HOME']
+  except KeyError:
+    os.environ['HOME'] = pwd.getpwnam(username).pw_dir
 
   # exec command
   p = subprocess.Popen(ceph_cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
